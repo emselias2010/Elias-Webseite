@@ -1,4 +1,4 @@
-# ELIAS — Beyond the Profile
+# ELIAS  Beyond the Profile
 
 Persönliche Website von Elias Ems als klassische PHP-Seite: **PHP, MySQL, HTML, CSS und JavaScript**, ohne Build-Schritt und ohne Node.js auf dem Server. Damit läuft sie auf günstigem oder kostenlosem Webspace wie **InfinityFree**.
 
