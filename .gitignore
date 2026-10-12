@@ -1,0 +1,9 @@
+# Secrets: passwords, keys, database (template: htdocs/app/.env.example)
+.env
+htdocs/app/.env
+
+
+# System files
+.DS_Store
+Thumbs.db
+node_modules/

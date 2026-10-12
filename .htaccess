@@ -1,0 +1,16 @@
+# Local start with XAMPP: http://localhost/Elias-Webseite/
+# Every request is passed into htdocs/, so the website works without
+# "/htdocs" in the address. README, tests and other folders here stay hidden.
+# Not needed on InfinityFree (only the contents of htdocs/ are uploaded there).
+
+Options -Indexes
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^htdocs/ - [L]
+    RewriteRule ^(.*)$ htdocs/$1 [L]
+</IfModule>
+
+<IfModule !mod_rewrite.c>
+    Require all denied
+</IfModule>

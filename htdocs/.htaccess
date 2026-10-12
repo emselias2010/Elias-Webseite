@@ -1,0 +1,54 @@
+# ELIAS — Beyond the Profile (Apache / InfinityFree)
+
+Options -Indexes
+DirectoryIndex index.php
+AddDefaultCharset UTF-8
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Pretty URLs
+    RewriteRule ^projects/([a-z0-9-]+)/?$ project.php?slug=$1 [L,QSA]
+    RewriteRule ^sitemap\.xml$ sitemap.php [L]
+    RewriteRule ^robots\.txt$ robots.php [L]
+
+    # Never serve hidden files (.git, .env, ...) or the internal folders.
+    RewriteRule (^|/)\. - [F,L]
+    RewriteRule ^(app|database)(/|$) - [F,L]
+
+    # Unknown addresses show 404.php. Unlike "ErrorDocument 404 /404.php" this
+    # also works when the site sits in a subfolder (XAMPP: /Elias-Webseite/).
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^ 404.php [L]
+</IfModule>
+
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    Header always set X-Frame-Options "DENY"
+</IfModule>
+
+# Fonts, images, CSS and JS can be cached; the ?v= parameter changes when a file changes.
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType font/woff2 "access plus 1 year"
+    ExpiresByType image/svg+xml "access plus 1 month"
+    ExpiresByType image/png "access plus 1 month"
+    ExpiresByType image/jpeg "access plus 1 month"
+    ExpiresByType image/webp "access plus 1 month"
+    ExpiresByType text/css "access plus 1 month"
+</IfModule>
+
+# Scripts load each other without a ?v= parameter (import "./util.js"), so the
+# browser has to ask every time whether they changed (a quick 304 if not).
+<IfModule mod_headers.c>
+    <FilesMatch "\.m?js$">
+        Header set Cache-Control "no-cache"
+    </FilesMatch>
+</IfModule>
+
+<IfModule mod_mime.c>
+    AddType font/woff2 .woff2
+    AddType text/javascript .js .mjs
+</IfModule>
