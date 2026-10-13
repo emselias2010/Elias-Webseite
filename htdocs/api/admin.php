@@ -16,6 +16,7 @@ declare(strict_types=1);
 require dirname(__DIR__) . '/app/bootstrap.php';
 require_once APP_DIR . '/lib/guestbook.php';
 require_once APP_DIR . '/lib/content.php';
+require_once APP_DIR . '/lib/moderation.php';
 
 const STATUSES = ['pending', 'published', 'rejected'];
 const LIST_FILTERS = ['pending', 'published', 'rejected', 'reported'];
@@ -65,6 +66,10 @@ if ($action === 'list' && $method === 'GET') {
     $status = (string) ($_GET['status'] ?? 'pending');
     if (!in_array($status, LIST_FILTERS, true)) {
         json_error(400, 'invalid', 'Unknown status.');
+    }
+    // Opportunity to re-check a few older comments while the owner is here.
+    if (ai_configured() && rate_limit('gb:moderate', 'all', 1, 120, false) === 'ok') {
+        moderate_backlog(3);
     }
     try {
         json_response(['ok' => true, 'comments' => guestbook_for_moderation($status), 'reported' => guestbook_reported_count()]);

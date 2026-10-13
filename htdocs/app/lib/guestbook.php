@@ -132,6 +132,40 @@ function guestbook_set_like(int $id, string $visitor, bool $liked): int
     return guestbook_likes([$id], $visitor)[$id]['count'] ?? 0;
 }
 
+/* ----------------------------- AI moderation ------------------------------ */
+
+/** Older installs imported the schema before AI moderation existed. */
+function guestbook_ensure_checks(): void
+{
+    db()->exec(db_driver() === 'sqlite'
+        ? 'CREATE TABLE IF NOT EXISTS guestbook_checks (comment_id INTEGER NOT NULL PRIMARY KEY, created_at TEXT NOT NULL)'
+        : 'CREATE TABLE IF NOT EXISTS guestbook_checks (comment_id INT UNSIGNED NOT NULL, created_at DATETIME NOT NULL, PRIMARY KEY (comment_id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci');
+}
+
+/** Marks a comment as checked by the AI, so it is not checked again. */
+function guestbook_mark_checked(int $id): void
+{
+    guestbook_ensure_checks();
+    $sql = db_driver() === 'sqlite'
+        ? 'INSERT OR IGNORE INTO guestbook_checks (comment_id, created_at) VALUES (?, ?)'
+        : 'INSERT IGNORE INTO guestbook_checks (comment_id, created_at) VALUES (?, ?)';
+    db()->prepare($sql)->execute([$id, db_now()]);
+}
+
+/** Published comments the AI has not checked yet, oldest first. */
+function guestbook_unchecked_published(int $limit): array
+{
+    guestbook_ensure_checks();
+    $limit = max(1, min(10, $limit));
+    $statement = db()->prepare(
+        "SELECT id, name, message FROM guestbook_comments
+         WHERE status = 'published' AND id NOT IN (SELECT comment_id FROM guestbook_checks)
+         ORDER BY created_at ASC, id ASC LIMIT $limit"
+    );
+    $statement->execute();
+    return $statement->fetchAll();
+}
+
 /* ------------------------------- Moderation ------------------------------- */
 
 /** $status: pending, published, rejected, or "reported" (any status, at least one report). */
@@ -211,10 +245,12 @@ function guestbook_clear_reports(int $id): bool
 function guestbook_delete(int $id): bool
 {
     db()->prepare('DELETE FROM guestbook_reports WHERE comment_id = ?')->execute([$id]);
-    try {
-        db()->prepare('DELETE FROM guestbook_likes WHERE comment_id = ?')->execute([$id]);
-    } catch (Throwable) {
-        // No likes table yet.
+    foreach (['guestbook_likes', 'guestbook_checks'] as $table) {
+        try {
+            db()->prepare("DELETE FROM $table WHERE comment_id = ?")->execute([$id]);
+        } catch (Throwable) {
+            // Table may not exist yet on older installs.
+        }
     }
     $statement = db()->prepare('DELETE FROM guestbook_comments WHERE id = ?');
     $statement->execute([$id]);

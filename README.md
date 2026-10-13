@@ -110,6 +110,7 @@ Der Assistent kennt nur, was in `knowledge.php` steht, und alles dort kann jedem
 `https://deine-adresse/admin/` (lokal: http://localhost/Elias-Website/admin/) öffnen und mit deinem Admin-Passwort anmelden. Oben wählst du den Bereich:
 
 - **Comments:** Neue Kommentare erscheinen sofort, ohne Freigabe. **Unpublish** blendet einen aus, **Delete** löscht ihn endgültig (zweimal klicken: „Delete for good“). Unter **Reported** stehen alle gemeldeten Kommentare mit Anzahl und Grund der Meldungen; eine rote Zahl an „Comments“ zeigt, wie viele es gibt. Besucher können Kommentare mit dem Herz liken (eins pro Besucher), die Anzahl siehst du auch im Admin.
+  Wenn ein KI-Schlüssel (`AI_API_KEY`) gesetzt ist, prüft die KI jeden neuen Kommentar beim Absenden und blendet Beleidigungen, Hassrede, Spam o. Ä. sofort aus (Status `rejected`, nur im Admin sichtbar). Ältere, noch ungeprüfte Kommentare werden nach und nach im Hintergrund nachgeprüft. Ist die KI nicht erreichbar, wird der Kommentar normal veröffentlicht und später nachgeprüft.
 - **Texts:** Rolle neben dem Namen, die großen Wörter oben, Intro, About-Texte, Kacheln und Interessen, die Links bei „Say hello“ und die Texte im Sport-Bereich (inklusive Zitat).
 - **Strava:** Aktivitäten-Karten hinzufügen, bearbeiten, umsortieren (↑ ↓) und entfernen (✕), dazu „Strava in numbers“ und die Kacheln oben im Sport-Bereich.
 - **Ask Elias:** Beispielfragen und das Wissen des Assistenten (Themen mit Fakten und Plänen). Die Regeln des Assistenten bleiben fest im Code.

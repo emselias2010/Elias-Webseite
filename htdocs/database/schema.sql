@@ -44,6 +44,16 @@ CREATE TABLE IF NOT EXISTS guestbook_likes (
         REFERENCES guestbook_comments (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Which comments the AI moderation has already checked.
+-- Also created automatically on the first check.
+CREATE TABLE IF NOT EXISTS guestbook_checks (
+    comment_id  INT UNSIGNED NOT NULL,
+    created_at  DATETIME     NOT NULL,
+    PRIMARY KEY (comment_id),
+    CONSTRAINT fk_check_comment FOREIGN KEY (comment_id)
+        REFERENCES guestbook_comments (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS rate_limits (
     rl_key        VARCHAR(190) NOT NULL,
     window_start  INT UNSIGNED NOT NULL,

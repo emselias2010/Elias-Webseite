@@ -215,6 +215,12 @@ export function initGuestbook(root) {
 
     // Success is only shown when the server confirmed that the comment was stored.
     if (result.status === 201 && result.data?.ok) {
+      // The AI check flagged it as inappropriate: it was not published.
+      if (result.data.status === "rejected") {
+        setStatus("error", "Your comment wasn't posted because it looked inappropriate. Please keep it friendly and try again.");
+        shownAt = Date.now();
+        return;
+      }
       setStatus("ok", "Thank you. Your comment is now in the guestbook.");
       const comment = result.data.comment;
       if (comment && !known.has(comment.id)) {

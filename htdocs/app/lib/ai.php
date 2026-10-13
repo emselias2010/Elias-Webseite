@@ -28,16 +28,19 @@ function ai_configured(): bool
     return trim((string) config()['ai']['api_key']) !== '';
 }
 
-/** @param array<int, array{role: string, content: string}> $messages */
-function ask_assistant(array $messages): string
+/**
+ * Low-level call to the chat completions API. Returns the assistant's text.
+ * @param array<int, array{role: string, content: string}> $messages
+ */
+function ai_chat(array $messages, int $maxTokens, int $timeout, float $temperature): string
 {
     $ai = config()['ai'];
     $base = rtrim((string) $ai['base_url'], '/');
     $payload = json_encode([
         'model' => (string) $ai['model'],
-        'messages' => array_merge([['role' => 'system', 'content' => build_system_prompt()]], $messages),
-        'max_tokens' => AI_MAX_OUTPUT_TOKENS,
-        'temperature' => 0.4,
+        'messages' => $messages,
+        'max_tokens' => $maxTokens,
+        'temperature' => $temperature,
     ], JSON_UNESCAPED_UNICODE);
 
     $curl = curl_init($base . '/chat/completions');
@@ -51,7 +54,7 @@ function ask_assistant(array $messages): string
             'X-Title: Ask Elias',
         ],
         CURLOPT_CONNECTTIMEOUT => 8,
-        CURLOPT_TIMEOUT => AI_TIMEOUT_SECONDS,
+        CURLOPT_TIMEOUT => $timeout,
         CURLOPT_FOLLOWLOCATION => false,
         CURLOPT_PROTOCOLS => CURLPROTO_HTTPS | CURLPROTO_HTTP,
     ]);
@@ -76,5 +79,55 @@ function ask_assistant(array $messages): string
     if ($reply === '') {
         throw new AiError('empty', 'The AI provider returned an empty answer.');
     }
+    return $reply;
+}
+
+/** @param array<int, array{role: string, content: string}> $messages */
+function ask_assistant(array $messages): string
+{
+    $reply = ai_chat(
+        array_merge([['role' => 'system', 'content' => build_system_prompt()]], $messages),
+        AI_MAX_OUTPUT_TOKENS,
+        AI_TIMEOUT_SECONDS,
+        0.4,
+    );
     return mb_substr($reply, 0, AI_MAX_REPLY_CHARS);
+}
+
+const AI_MODERATION_TIMEOUT = 8;
+
+/**
+ * Checks a guestbook comment for abuse. Returns 'allow', 'block', or
+ * 'unknown' (when the provider could not be reached). Never throws.
+ */
+function ai_moderate(string $name, string $message): string
+{
+    if (!ai_configured()) {
+        return 'unknown';
+    }
+    $system = <<<'PROMPT'
+You moderate the public guestbook of a personal website. Decide whether a visitor's comment may stay online.
+
+Block it if it contains any of: insults or personal attacks, hate speech or slurs, harassment or threats, sexual or explicit content, spam or advertising, scams or phishing, links to shady sites, or clearly abusive gibberish.
+
+Allow everything else, including short messages, praise, honest criticism, jokes and harmless off-topic notes. When in doubt, allow.
+
+Answer with exactly one word: ALLOW or BLOCK.
+PROMPT;
+    try {
+        $reply = ai_chat([
+            ['role' => 'system', 'content' => $system],
+            ['role' => 'user', 'content' => 'Name: ' . $name . "\nComment: " . $message],
+        ], 3, AI_MODERATION_TIMEOUT, 0.0);
+    } catch (AiError) {
+        return 'unknown';
+    }
+    $verdict = strtoupper($reply);
+    if (str_contains($verdict, 'BLOCK')) {
+        return 'block';
+    }
+    if (str_contains($verdict, 'ALLOW')) {
+        return 'allow';
+    }
+    return 'unknown';
 }

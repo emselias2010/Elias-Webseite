@@ -6,6 +6,7 @@
 declare(strict_types=1);
 require dirname(__DIR__) . '/app/bootstrap.php';
 require_once APP_DIR . '/lib/guestbook.php';
+require_once APP_DIR . '/lib/moderation.php';
 
 const NOT_CONNECTED = 'The guestbook is not connected to a database yet.';
 
@@ -28,6 +29,20 @@ if ($method === 'GET') {
     } catch (Throwable $exception) {
         error_log('Guestbook read failed: ' . $exception->getMessage());
         json_error(503, 'unavailable', 'Comments could not be loaded right now.');
+    }
+    // Re-check a few older comments with the AI, after the visitor has their
+    // answer, so the page never waits for it. Only where the server can defer
+    // work (PHP-FPM), and at most once every few minutes across all visitors.
+    if (ai_configured() && function_exists('fastcgi_finish_request')
+        && rate_limit('gb:moderate', 'all', 1, 180, false) === 'ok') {
+        register_shutdown_function(static function (): void {
+            fastcgi_finish_request();
+            try {
+                moderate_backlog(2);
+            } catch (Throwable $exception) {
+                error_log('Background moderation failed: ' . $exception->getMessage());
+            }
+        });
     }
     json_response(['ok' => true, 'comments' => $page['comments'], 'nextBefore' => $page['next']]);
 }
@@ -69,6 +84,11 @@ try {
 } catch (Throwable $exception) {
     error_log('Guestbook insert failed: ' . $exception->getMessage());
     json_error(503, 'unavailable', 'Your comment could not be saved. Please try again later.');
+}
+
+// Check the new comment with the AI. A blocked one is hidden right away.
+if (ai_configured() && moderate_stored_comment($comment['id'], $input['name'], $input['message']) === 'block') {
+    json_response(['ok' => true, 'status' => 'rejected'], 201);
 }
 
 json_response(['ok' => true, 'status' => 'published', 'comment' => $comment], 201);
